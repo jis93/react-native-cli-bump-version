@@ -219,6 +219,7 @@ class ProjectFilesManager {
     readonly pbx: PBXManager;
     readonly buildGradle: BuildGradleManager;
     readonly packageJSON: PackageJSONManager;
+    readonly appJSON: AppJSONManager;
 
     constructor(configs: Configs) {
         const { root, pbxprojPath, buildGradlePath } = configs;
@@ -231,6 +232,9 @@ class ProjectFilesManager {
                 root,
                 "package.json",
             )
+        );
+        this.appJSON = new AppJSONManager(() =>
+            path.join(root, "app.json")
         );
     }
 
@@ -285,6 +289,7 @@ class ProjectFilesManager {
         this.pbx.write();
         this.buildGradle.write();
         this.packageJSON.write();
+        this.appJSON.write();
     }
 
     /**
@@ -310,6 +315,50 @@ class ProjectFilesManager {
         }
 
         return this;
+    }
+}
+
+class AppJSONManager {
+    private readonly basePath: () => string;
+    public content: {
+        expo: {
+            version: string;
+        };
+    } | null = null;
+
+    constructor(basePath: () => string) {
+        this.basePath = basePath;
+    }
+
+    private read() {
+        if (this.content === null) {
+            const raw = fs.readFileSync(require.resolve(this.basePath()), {
+                encoding: "utf8",
+            });
+            this.content = JSON.parse(raw);
+        }
+
+        return this.content!;
+    }
+
+    write() {
+        if (this.content) {
+            return writeFile(
+                this.basePath(),
+                JSON.stringify(this.content, null, 2),
+            );
+        }
+    }
+
+    getVersion() {
+        return this.read().expo.version;
+    }
+
+    setVersion(next: string) {
+        const current = this.getVersion();
+        this.content!.expo.version = next;
+
+        return { next, current };
     }
 }
 
